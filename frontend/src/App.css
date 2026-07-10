@@ -1,0 +1,105 @@
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main.container {
+  flex: 1;
+  position: relative;
+}
+
+/* ===== GLASSMORPHISM UTILITIES ===== */
+.glass-panel {
+  background: rgba(3, 7, 18, 0.45) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4) !important;
+}
+
+.glass-card {
+  background: rgba(3, 7, 18, 0.35) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 16px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  background: rgba(3, 7, 18, 0.5) !important;
+  border-color: rgba(0, 230, 118, 0.2) !important;
+  transform: translateY(-3px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5) !important;
+}
+
+.page-wrapper {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  background: transparent !important;
+}
+
+.page-content {
+  background: rgba(3, 7, 18, 0.35);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 24px;
+  padding: 32px;
+  margin-bottom: 24px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+}
+
+.glass-input {
+  background: rgba(10, 15, 30, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 14px !important;
+  color: var(--text-primary) !important;
+  padding: 14px 18px !important;
+  transition: all 0.3s ease !important;
+}
+.glass-input:focus {
+  border-color: var(--accent-green) !important;
+  box-shadow: 0 0 0 4px rgba(0, 230, 118, 0.1) !important;
+  background: rgba(10, 15, 30, 0.8) !important;
+}
+
+/* ===== EXERCISE CARD ===== */
+.exercise-card {
+  width: 100%;
+  max-width: 380px;
+  background: rgba(3, 7, 18, 0.5);
+  backdrop-filter: blur(12px);
+  border-top: 4px solid var(--accent-green);
+  border-bottom-left-radius: 20px;
+  text-decoration: none;
+  display: flex;
+  justify-content: space-between;
+  flex-direction: column;
+  padding-bottom: 10px;
+  transform: scale(1, 1);
+  transition: var(--transition-smooth);
+  margin: 10px auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+.exercise-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.4);
+  border-top-color: var(--accent-cyan);
+}
+
+.section-dark {
+  background: rgba(3, 7, 18, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 24px;
+  padding: 48px 0;
+}
