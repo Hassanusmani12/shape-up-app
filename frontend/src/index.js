@@ -1,5 +1,6 @@
 import React, { lazy } from "react";
 import ReactDOM from "react-dom/client";
+import axios from "axios";
 import {
   createBrowserRouter,
   createRoutesFromElements,
@@ -7,19 +8,21 @@ import {
   RouterProvider,
 } from "react-router-dom";
 import { Provider } from "react-redux";
-import store from "./store";
-import CinemaLayout from "./components/CinemaLayout";
-import axios from "axios";
-axios.defaults.withCredentials = true;
+
+// CSS Imports
 import "bootstrap/dist/css/bootstrap.min.css";
 import './index.css';
 import './styles/4d-effects.css';
 
+// Components & Context
+import store from "./store";
+import CinemaLayout from "./components/CinemaLayout";
 import { ThemeProvider } from "./context/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PrivateRoute from "./components/PrivateRoute";
 import PublicRoute from "./components/PublicRoute";
 
+// Pages
 import Home from "./pages/Home";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
@@ -28,7 +31,6 @@ import Workouts from "./pages/Workouts";
 import NutritionChecker from "./pages/NutritionChecker";
 import NutritionAIAnalyzer from "./pages/NutritionAIAnalyzer";
 import BMRCalculator from "./pages/BMRCalculator";
-
 import Features from "./pages/Features";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
@@ -38,6 +40,9 @@ import Settings from "./pages/Settings";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import CookiePolicy from "./pages/CookiePolicy";
+
+// Executable code must come after all imports
+axios.defaults.withCredentials = true;
 
 // Lazy load AI Hub for code splitting
 const AIHub = lazy(() => import("./pages/AIHub"));
