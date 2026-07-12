@@ -18,10 +18,19 @@ export const nutritionApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["DailyLog"],
     }),
+    deleteNutritionEntry: builder.mutation({
+      query: ({ id, userId }) => ({
+        url: `${NUTRITION_URL}/entry/${id}`,
+        method: "DELETE",
+        body: { userId },
+      }),
+      invalidatesTags: ["DailyLog"],
+    }),
   }),
 });
 
 export const {
   useAnalyzeAndLogMutation,
   useGetDailyStatsQuery,
+  useDeleteNutritionEntryMutation,
 } = nutritionApiSlice;

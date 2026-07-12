@@ -9,6 +9,8 @@ import {
 import { Provider } from "react-redux";
 import store from "./store";
 import CinemaLayout from "./components/CinemaLayout";
+import axios from "axios";
+axios.defaults.withCredentials = true;
 import "bootstrap/dist/css/bootstrap.min.css";
 import './index.css';
 import './styles/4d-effects.css';

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import {
@@ -165,6 +166,7 @@ function ChatSidebar({ chats, activeChatId, onSelect, onNew, onDelete, onRename,
 
 /* ── Main Chat Component ── */
 export default function AIHub() {
+  const { userInfo } = useSelector((state) => state.auth);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -185,7 +187,14 @@ export default function AIHub() {
   const abortRef = useRef(null);
   const msgIdCounter = useRef(0);
 
-  useEffect(() => { setChats(getChats()); }, []);
+  useEffect(() => {
+    setChats(getChats());
+    return () => {
+      setChats([]);
+      setMessages([]);
+      setActiveChatId(null);
+    };
+  }, [userInfo]);
 
   const updateChatInState = useCallback((chatId, updater) => {
     setChats(prev => {

@@ -23,6 +23,7 @@ const dailyLogSchema = mongoose.Schema(
             protein: { type: Number, default: 0 },
             carbs: { type: Number, default: 0 },
             fat: { type: Number, default: 0 },
+            nutritionEntryId: { type: String, default: null },
         }
     ]
   },

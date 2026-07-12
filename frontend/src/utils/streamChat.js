@@ -1,116 +1,95 @@
-const FETCH_TIMEOUT = 25000;
-const MAX_RETRIES = 2;
+const TIMEOUT_MS = 20000;
 
-function isNetworkError(err) {
-  const msg = (err.message || "").toLowerCase();
-  return err.name === "TypeError" || msg.includes("network") || msg.includes("fetch");
-}
+const IMAGE_FALLBACK =
+  "Sorry! Sometimes image analysis may not be available due to temporary AI model limitations.\n\nPlease describe the food or fitness item in text and I'll analyze it for you.";
+
+const TEXT_FALLBACK =
+  "I'm ShapeUp AI, a fitness assistant.\n\nI only answer questions related to fitness, nutrition, workouts, health and food analysis.\n\nPlease ask me something related to your fitness journey.";
 
 export async function streamChat(body, onChunk, onError, signal) {
-  let lastError = "";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+  const combinedSignal = signal
+    ? combineAbortSignals(controller.signal, signal)
+    : controller.signal;
 
-      const combinedSignal = signal
-        ? combineAbortSignals(controller.signal, signal)
-        : controller.signal;
+  try {
+    const response = await fetch("/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+      signal: combinedSignal,
+    });
 
-      const response = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: combinedSignal,
-      });
+    clearTimeout(timer);
 
-      clearTimeout(timer);
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        lastError = errData.error || `Request failed (${response.status})`;
-        if (attempt < MAX_RETRIES && response.status >= 500) {
-          const delay = 1000 * attempt;
-          await new Promise((r) => setTimeout(r, delay));
-          continue;
-        }
-        onError(lastError);
-        return;
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        let result;
-        try {
-          result = await reader.read();
-        } catch (readError) {
-          if (readError.name === "AbortError") {
-            onError("Cancelled");
-            return;
-          }
-          if (isNetworkError(readError) && attempt < MAX_RETRIES) {
-            const delay = 1000 * attempt;
-            await new Promise((r) => setTimeout(r, delay));
-            break;
-          }
-          onError(readError.message || "Stream connection lost.");
-          return;
-        }
-
-        const { done, value } = result;
-
-        if (value) {
-          buffer += decoder.decode(value, { stream: true });
-        }
-
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (data.done) {
-              onChunk({ done: true, conversationId: data.conversationId });
-            } else if (data.error) {
-              onError(data.error);
-              return;
-            } else if (data.content) {
-              onChunk({ content: data.content });
-            }
-          } catch (parseError) {
-            // silent parse warning
-          }
-        }
-
-        if (done) break;
-      }
-
-      if (!buffer.includes("error")) {
-        return;
-      }
-    } catch (err) {
-      if (err.name === "AbortError") {
-        onError("Cancelled");
-        return;
-      }
-      lastError = err.message;
-      if (isNetworkError(err) && attempt < MAX_RETRIES) {
-        const delay = 1000 * attempt;
-        await new Promise((r) => setTimeout(r, delay));
-      } else {
-        onError(lastError);
-        return;
-      }
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      const fallback = body.image ? IMAGE_FALLBACK : TEXT_FALLBACK;
+      onChunk({ content: fallback });
+      onChunk({ done: true });
+      return;
     }
-  }
 
-  if (lastError) {
-    onError(lastError);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let receivedContent = false;
+
+    while (true) {
+      let readResult;
+      try {
+        readResult = await reader.read();
+      } catch (readError) {
+        break;
+      }
+
+      const { done, value } = readResult;
+
+      if (value) {
+        buffer += decoder.decode(value, { stream: true });
+      }
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.done) {
+            if (!receivedContent) {
+              const fallback = body.image ? IMAGE_FALLBACK : TEXT_FALLBACK;
+              onChunk({ content: fallback });
+            }
+            onChunk({ done: true, conversationId: data.conversationId });
+          } else if (data.error) {
+            const fallback = body.image ? IMAGE_FALLBACK : TEXT_FALLBACK;
+            onChunk({ content: fallback });
+            onChunk({ done: true });
+            return;
+          } else if (data.content) {
+            receivedContent = true;
+            onChunk({ content: data.content });
+          }
+        } catch {}
+      }
+
+      if (done) break;
+    }
+
+    if (!receivedContent) {
+      const fallback = body.image ? IMAGE_FALLBACK : TEXT_FALLBACK;
+      onChunk({ content: fallback });
+      onChunk({ done: true });
+    }
+  } catch (err) {
+    clearTimeout(timer);
+    const fallback = body.image ? IMAGE_FALLBACK : TEXT_FALLBACK;
+    onChunk({ content: fallback });
+    onChunk({ done: true });
   }
 }
 

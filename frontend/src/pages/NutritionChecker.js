@@ -28,6 +28,7 @@ import {
 import {
   useAnalyzeAndLogMutation,
   useGetDailyStatsQuery,
+  useDeleteNutritionEntryMutation,
 } from "../slices/nutritionApiSlice";
 import { getCalorieGoal, getMacroTargets } from "../utils/nutritionUtils";
 import "../assets/css/MealLog.css";
@@ -183,6 +184,7 @@ const NutritionChecker = () => {
     pollingInterval: 10000,
   });
   const [analyzeAndLog] = useAnalyzeAndLogMutation();
+  const [deleteNutritionEntry] = useDeleteNutritionEntryMutation();
 
   const totals = statsData?.totals || { calories: 0, protein: 0, carbs: 0, fats: 0, meals: 0 };
   const recentLogs = statsData?.recentLogs || [];
@@ -407,21 +409,15 @@ const NutritionChecker = () => {
 
   const handleDeleteEntry = useCallback(async (id) => {
     try {
-      const res = await fetch(`/api/nutrition/entry/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const res = await deleteNutritionEntry({ id, userId }).unwrap();
+      if (res?.success) {
         toast.success("Entry removed");
         refetch();
-      } else {
-        toast.error(data.message || "Failed to delete");
       }
-    } catch {
-      toast.error("Delete failed");
+    } catch (err) {
+      toast.error(err?.data?.error || err?.data?.message || err?.message || "Failed to delete");
     }
-  }, [refetch]);
+  }, [deleteNutritionEntry, refetch, userId]);
 
   const suggestedPrompts = [
     "I ate 2 eggs and avocado toast",

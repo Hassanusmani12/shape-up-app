@@ -45,6 +45,13 @@ export const usersApiSlice = apiSlice.injectEndpoints({
       }),
     }),
 
+    getUserProfile: builder.query({
+      query: () => ({
+        url: `${USERS_URL}/profile`,
+        method: "GET",
+      }),
+    }),
+
     // User status endpoints
     updateStatus: builder.mutation({
       query: (data) => ({
@@ -93,6 +100,7 @@ export const {
   useLoginMutation,
   useLogoutMutation,
   useRegisterMutation,
+  useGetUserProfileQuery,
   useUpdateUserProfileMutation,
   useDeleteUserMutation,
   useUpdateStatusMutation,

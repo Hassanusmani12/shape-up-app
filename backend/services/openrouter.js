@@ -12,8 +12,11 @@ function getApiKey() {
   return key;
 }
 
-function getModel() {
-  return process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free";
+function getModel({ hasImage } = {}) {
+  if (hasImage) {
+    return process.env.IMAGE_MODEL;
+  }
+  return process.env.TEXT_MODEL;
 }
 
 function defaultHeaders() {
@@ -25,30 +28,50 @@ function defaultHeaders() {
   };
 }
 
-const AI_HUB_SYSTEM_PROMPT = `You are ShapeUp AI.
+const AI_HUB_SYSTEM_PROMPT = `You are ShapeUp AI, an elite fitness assistant. You ONLY answer fitness-related questions.
 
-You are an expert fitness coach, certified nutritionist, wellness advisor and workout planner.
+ALLOWED TOPICS:
+- Workout plans, exercises, form, and training
+- Nutrition, diet, calories, macros
+- Weight loss, muscle gain, body recomposition
+- Protein, supplements, recovery
+- Body fat, BMI, health, fitness progress
+- Meal plans, food analysis
+- Fitness-related image analysis (food, gym equipment, exercise posture, supplements)
 
-Always answer professionally.
+If the user asks about ANYTHING else — coding, programming, React, Node, JavaScript, movies, politics, religion, news, general knowledge, math, science, history, geography, crypto, trading, finance, weather, travel, entertainment, or any non-fitness topic — NEVER answer. Instead reply exactly:
 
-Use Markdown.
+"I'm ShapeUp AI, a fitness assistant.
 
-Provide detailed but easy-to-read responses.
+I only answer questions related to fitness, nutrition, workouts, health and food analysis.
 
-Include workout sets and reps whenever applicable.
+Please ask me something related to your fitness journey."
 
-Include estimated nutrition values whenever relevant.
-
-Never hallucinate.
-
-Clearly mention when information is estimated.`;
+RULES:
+- Politely refuse all non-fitness questions.
+- Never invent values. Always mention "Values are estimated" when giving nutrition or calorie estimates.
+- For food images: estimate calories, protein, carbs, fat, fiber, sugar, sodium, serving size, health score, suggestions, confidence.
+- For non-food fitness images (gym equipment, exercise posture, supplements): analyze accordingly.
+- For unrelated images (cars, dogs, computers, selfies, houses): reply "I can only analyze food and fitness related images."
+- Output in professional, clean Markdown. Use bullet points.
+- Keep responses short and focused.
+- No chain-of-thought, no internal reasoning.
+- Never claim exact nutrition unless a label is visible in the image.`;
 
 const NUTRITION_SYSTEM_PROMPT = `You are a nutrition analysis AI. Do not explain your thinking. Do not output reasoning or analysis steps. Respond with ONLY a valid JSON object. Nothing before it, nothing after it. No markdown, no code fences, no explanation text.
 
 JSON format:
 {"foods":[{"name":"","serving":"","calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0,"sugar":0,"sodium":0}],"totals":{"calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0,"sugar":0,"sodium":0},"healthScore":0,"confidence":0,"suggestions":[]}
 
-Rules: foods array lists each food item individually; totals is sum of all foods; healthScore 1-10; confidence 0-100; suggestions array of 1-3 short strings; all numbers are numbers not strings; estimate reasonably; note values are estimated in suggestions.`;
+Rules:
+- foods array lists each food item individually.
+- totals is sum of all foods.
+- healthScore 1-10, confidence 0-100.
+- suggestions array of 1-3 short strings.
+- All numbers are numbers, not strings.
+- Estimate reasonably. All values are estimated.
+- Never claim exact nutrition unless a label is visible.
+- Include the phrase "Values are estimated" in your suggestions.`;
 
 function formatImageUrl(imageData, mimeType) {
   if (!imageData) return null;
@@ -84,13 +107,13 @@ function extractContent(responseData) {
   return null;
 }
 
-async function callOpenRouter({ messages, stream = false, signal, timeout = TIMEOUT_MS, max_tokens = 2000, reasoning }) {
+async function callOpenRouter({ messages, stream = false, signal, timeout = TIMEOUT_MS, max_tokens = 2000, reasoning, hasImage = false }) {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY is not configured in .env");
   }
 
-  const model = getModel();
+  const model = getModel({ hasImage });
   const body = { model, messages, max_tokens };
   if (stream) {
     body.stream = true;
@@ -100,7 +123,11 @@ async function callOpenRouter({ messages, stream = false, signal, timeout = TIME
   }
 
   const startTime = Date.now();
+  const maskedKey = apiKey.length >= 12 ? apiKey.slice(0, 12) + "..." : "(short)";
   console.log(`\n🚀 OpenRouter Request — model: ${model} | stream: ${stream} | messages: ${messages.length}`);
+  console.log(`   Authorization: Bearer ${maskedKey}`);
+  console.log(`   Endpoint: ${CHAT_URL}`);
+  console.log(`   Request body model: ${body.model} | stream: ${body.stream} | messages: ${body.messages.length}`);
   console.log(`   System prompt: ${messages[0]?.content?.substring(0, 80)}...`);
 
   try {

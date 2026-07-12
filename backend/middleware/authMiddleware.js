@@ -7,6 +7,8 @@ const protect = asyncHandler(async (req, res, next) => {
 
   token = req.cookies.jwt;
 
+  console.log("protect middleware | cookies present:", !!req.cookies, "| jwt cookie:", token ? "exists (" + token.substring(0, 20) + "...)" : "MISSING");
+
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -15,13 +17,37 @@ const protect = asyncHandler(async (req, res, next) => {
 
       next();
     } catch (error) {
+      console.error("protect middleware | invalid token:", error.message);
       res.status(401);
       throw new Error("Not authorized, invalid token");
     }
   } else {
+    console.warn("protect middleware | no token found in cookies");
     res.status(401);
     throw new Error("Not authorized, no token");
   }
 });
 
-export { protect };
+const optionalAuth = asyncHandler(async (req, res, next) => {
+  let token;
+
+  token = req.cookies.jwt;
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = await User.findById(decoded.userId).select("-password");
+      console.log("optionalAuth: user attached:", req.user?._id?.toString());
+    } catch (error) {
+      console.log("optionalAuth: invalid token, continuing as guest");
+      req.user = undefined;
+    }
+  } else {
+    console.log("optionalAuth: no token, continuing as guest");
+    req.user = undefined;
+  }
+
+  next();
+});
+
+export { protect, optionalAuth };

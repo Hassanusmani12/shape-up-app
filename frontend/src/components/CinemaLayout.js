@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { setCredentials } from '../slices/authSlice';
+import { useGetUserProfileQuery } from '../slices/usersApiSlice';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Header from './Header';
@@ -10,8 +13,17 @@ import useCinematicScroll from '../hooks/useCinematicScroll';
 gsap.registerPlugin(ScrollTrigger);
 
 export default function CinemaLayout() {
+  const dispatch = useDispatch();
   const location = useLocation();
   const progressRef = useRef(null);
+
+  const { data: userProfile, isSuccess } = useGetUserProfileQuery();
+
+  useEffect(() => {
+    if (isSuccess && userProfile) {
+      dispatch(setCredentials(userProfile));
+    }
+  }, [isSuccess, userProfile, dispatch]);
 
   useEffect(() => {
     const onScroll = () => {

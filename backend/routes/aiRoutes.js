@@ -7,7 +7,7 @@ import {
   aiCheatMealJudge, aiRecoveryCoach, aiProgressAnalyzer,
   aiSupplementAdvisor, aiGoalPlanner,
   getDailyChallenges, completeChallenge, getAchievements,
-  getXPInfo, saveFoodScan, handleAIRequest
+  getXPInfo, saveFoodScan, handleAIRequest, getChatSessions
 } from "../controllers/aiController.js";
 
 const router = express.Router();
@@ -54,5 +54,6 @@ router.post("/daily-challenges/complete", protect, completeChallenge);
 router.get("/achievements", protect, getAchievements);
 router.get("/xp", protect, getXPInfo);
 router.post("/save-food-scan", protect, saveFoodScan);
+router.get("/sessions", protect, getChatSessions);
 
 export default router;

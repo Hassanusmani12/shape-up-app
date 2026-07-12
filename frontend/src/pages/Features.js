@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   FaDumbbell, FaAppleAlt, FaCalculator, FaUtensils, FaTint,
   FaArrowRight, FaCheckCircle, FaBolt, FaChartPie,
-  FaGoogle, FaApple, FaHeartbeat, FaSpotify, FaStrava
+  FaGoogle, FaApple, FaHeartbeat, FaSpotify, FaStrava, FaRobot
 } from "react-icons/fa";
 
 const IMG_AI_SCAN = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop";
@@ -17,7 +17,7 @@ const FEATURES_LIST = [
   { id: 1, title: "Workout Database", icon: FaDumbbell, color: "#00ff88", description: "Access 500+ exercises with video guides. Filter by muscle group, difficulty, and equipment.", link: "/pages/workouts" },
   { id: 2, title: "AI Nutrition Checker", icon: FaAppleAlt, color: "#00d4ff", description: "Instantly analyze food quality. Get detailed macronutrient breakdowns for millions of items.", link: "/pages/nutrition-checker" },
   { id: 3, title: "BMR Calculator", icon: FaCalculator, color: "#7c4dff", description: "Scientific metabolic rate calculation. Know exactly how many calories you need.", link: "/pages/bmr-calculator" },
-  { id: 4, title: "Smart Meal Planner", icon: FaUtensils, color: "#ff9100", description: "Generate weekly meal plans based on your dietary preferences.", link: "/pages/profile/meal-plan" },
+  { id: 4, title: "AI Hub", icon: FaRobot, color: "#ff6b9d", description: "Chat with your personal AI fitness coach. Get workout plans, nutrition advice and wellness tips instantly.", link: "/ai-hub" },
   { id: 5, title: "Hydration Tracking", icon: FaTint, color: "#00d4ff", description: "Log water intake effortlessly. Set daily goals and get smart reminders.", link: "/dashboard" },
   { id: 6, title: "Progress Analytics", icon: FaChartPie, color: "#00ff88", description: "Visualize weight loss trends, strength gains, and consistency streaks.", link: "/dashboard" },
 ];

@@ -106,7 +106,7 @@ async function callAIWithImage(prompt, imageData, mimeType = "image/jpeg", syste
       { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageData}` } },
     ],
   });
-  const response = await callOpenRouter({ messages, stream: false, timeout: 60000 });
+  const response = await callOpenRouter({ messages, stream: false, timeout: 60000, hasImage: true });
   return extractContent(response.data) || "";
 }
 
@@ -155,7 +155,7 @@ const aiFoodScanner = asyncHandler(async (req, res) => {
       imageUrl = `data:${mimeType || "image/jpeg"};base64,${imagePayload}`;
     }
 
-    const model = getModel();
+    const model = getModel({ hasImage: true });
     console.log("\n========== FOOD SCANNER REQUEST ==========");
     console.log("Model:", model);
     console.log("Prompt:", userPrompt);
@@ -176,6 +176,7 @@ const aiFoodScanner = asyncHandler(async (req, res) => {
         ],
         stream: false,
         max_tokens: 2000,
+        hasImage: true,
       });
 
       console.log("✅ OpenRouter response received");
@@ -844,7 +845,7 @@ export const handleAIRequest = async (req, res) => {
       return res.status(400).json({ success: false, message: "Prompt (message) is required." });
     }
 
-    const model = getModel();
+    const model = getModel({ hasImage: !!imageData });
     const messages = imageData
       ? [
           { role: "system", content: "You are an expert AI assistant. Execute the user's prompt exactly as requested." },
@@ -864,7 +865,7 @@ export const handleAIRequest = async (req, res) => {
     console.log(`🚀 Sending to OpenRouter model: ${model}`);
     if (imageData) console.log("📸 Image detected, sending multimodal request...");
 
-    const response = await callOpenRouter({ messages, stream: false, max_tokens: 2000 });
+    const response = await callOpenRouter({ messages, stream: false, max_tokens: 2000, hasImage: !!imageData });
     const aiResult = extractContent(response.data);
 
     if (!aiResult) {
@@ -887,30 +888,41 @@ export const handleAIRequest = async (req, res) => {
   }
 };
 
+const IMAGE_FALLBACK = "Sorry! Sometimes image analysis may not be available due to temporary AI model limitations.\n\nPlease describe the food or fitness item in text and I'll analyze it for you.";
+
+const TEXT_FALLBACK = "I'm ShapeUp AI, a fitness assistant.\n\nI only answer questions related to fitness, nutrition, workouts, health and food analysis.\n\nPlease ask me something related to your fitness journey.";
+
+const getChatSessions = asyncHandler(async (req, res) => {
+  console.log("Fetching chats for User ID:", req.user._id);
+  try {
+    const sessions = await ChatSession.find({ user: req.user._id })
+      .select("tool updatedAt createdAt")
+      .sort({ updatedAt: -1 });
+    res.json({ success: true, sessions });
+  } catch (error) {
+    console.error("getChatSessions error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 const aiChat = async (req, res) => {
+  console.log("AI CHAT ROUTE HIT");
   const startTime = Date.now();
-  let retryCount = 0;
 
   try {
     const { message, image, mimeType, conversationId } = req.body;
     const userId = req.user?._id;
-    const model = getModel();
-
-    console.log("\n========== AI HUB INCOMING ==========");
-    console.log("conversationId:", conversationId || "(new)");
-    console.log("message:", message?.substring(0, 100) || "(empty)");
-    console.log("has image:", !!image);
-    console.log("user:", userId?.toString() || "anonymous");
-    console.log("model:", model);
-    console.log("=====================================\n");
+    const hasImage = !!image;
+    const model = getModel({ hasImage });
+    console.log("Selected model:", model);
 
     let session;
     if (conversationId) {
-      session = await ChatSession.findById(conversationId);
+      session = await ChatSession.findOne({ _id: conversationId, user: userId || null });
     }
     if (!session) {
       session = await ChatSession.create({
-        user: userId || "anonymous",
+        user: userId || null,
         tool: "general",
         messages: [],
       });
@@ -920,13 +932,7 @@ const aiChat = async (req, res) => {
     const history = session.messages.slice(-20);
     const openaiMessages = buildMessages(AI_HUB_SYSTEM_PROMPT, message || (image ? "Analyze this image." : "Hello"), image, mimeType, history);
 
-    console.log("session messages count:", session.messages.length);
-    console.log("openai messages sent to model:", openaiMessages.length);
-    console.log("Stage: saving user message to DB");
-
     await addMessage(session, "user", message || (image ? "Analyze this image." : "Hello"), image || null);
-
-    console.log("Stage: user message saved, starting SSE headers");
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -937,232 +943,109 @@ const aiChat = async (req, res) => {
 
     const abortController = new AbortController();
     const onClientDisconnect = () => {
-      if (!abortController.signal.aborted) {
-        console.log("⚠️ Client disconnected — aborting AI Hub stream");
-        abortController.abort();
-      }
+      if (!abortController.signal.aborted) abortController.abort();
     };
     req.on("close", onClientDisconnect);
 
     let fullContent = "";
-    let streamSuccess = false;
-    const attemptStart = Date.now();
 
-    for (let attempt = 0; attempt <= 2; attempt++) {
-      if (abortController.signal.aborted) {
-        console.warn("⏹️ Attempt skipped — client already disconnected");
-        break;
-      }
-      retryCount = attempt;
-      console.log(`\n--- AI Hub attempt ${attempt + 1}/3 | model: ${model} | messages: ${openaiMessages.length} ---`);
-      console.log(`  Request stage: POST to OpenRouter (streaming)`);
-      try {
-        const response = await callOpenRouter({
-          messages: openaiMessages,
-          stream: true,
-          max_tokens: 2000,
-          signal: abortController.signal,
-        });
+    try {
+      const response = await callOpenRouter({
+        messages: openaiMessages,
+        stream: true,
+        max_tokens: 2000,
+        signal: abortController.signal,
+        hasImage,
+        timeout: 20000,
+      });
 
-        if (response.status !== 200) {
-          let errorBody = "";
-          try {
-            for await (const chunk of response.data) {
-              errorBody += chunk.toString();
-            }
-          } catch (_) {}
-          const errMsg = `OpenRouter returned status ${response.status}: ${errorBody.substring(0, 300)}`;
-          console.error(`❌ ${errMsg}`);
-          throw new Error(errMsg);
-        }
+      if (response.status !== 200) throw new Error(`Status ${response.status}`);
 
-        console.log("stream connection established, reading SSE...");
-        fullContent = "";
+      const safeWrite = (data) => {
+        try {
+          if (!res.writableEnded && !res.destroyed) res.write(data);
+        } catch (_) {}
+      };
 
-        const safeWrite = (data) => {
-          try {
-            if (!res.writableEnded && !res.destroyed) {
-              res.write(data);
-            }
-          } catch (_) {}
+      await new Promise((resolve, reject) => {
+        let buffer = "";
+        let resolved = false;
+        let receivedContent = false;
+
+        const cleanup = (err) => {
+          if (resolved) return;
+          resolved = true;
+          response.data.removeListener("data", onData);
+          response.data.removeListener("end", onEnd);
+          response.data.removeListener("error", onError);
+          response.data.destroy();
+          if (err) reject(err);
+          else resolve();
         };
 
-        await new Promise((resolve, reject) => {
-          let sseBuffer = "";
-          let streamResolved = false;
-          let receivedContent = false;
-          let seenDone = false;
-          let lastDataTime = Date.now();
+        const onData = (raw) => {
+          try {
+            const chunk = raw.toString();
+            buffer += chunk;
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
 
-          const streamIdleTimer = setInterval(() => {
-            if (streamResolved) {
-              clearInterval(streamIdleTimer);
-              return;
-            }
-            if (Date.now() - lastDataTime > 60000) {
-              console.warn("⏰ Stream idle for 60s — force-resolving");
-              clearInterval(streamIdleTimer);
-              cleanup();
-            }
-          }, 5000);
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed === "data: [DONE]" || !trimmed.startsWith("data: ")) continue;
 
-          const cleanup = (err) => {
-            clearInterval(streamIdleTimer);
-            response.data.removeListener("data", onData);
-            response.data.removeListener("end", onEnd);
-            response.data.removeListener("error", onError);
-            response.data.destroy();
-            if (!streamResolved) {
-              streamResolved = true;
-              if (err) reject(err);
-              else resolve();
-            }
-          };
-
-          const onData = (raw) => {
-            try {
-              lastDataTime = Date.now();
-              const chunk = raw.toString();
-              if (!chunk.trim()) return;
-              sseBuffer += chunk;
-              const parts = sseBuffer.split("\n");
-              sseBuffer = parts.pop() || "";
-
-              for (const line of parts) {
-                const trimmed = line.trim();
-                if (!trimmed) continue;
-                if (trimmed === "data: [DONE]") {
-                  seenDone = true;
-                  continue;
+              try {
+                const parsed = JSON.parse(trimmed.slice(6));
+                if (parsed.error) { reject(new Error(parsed.error.message)); return; }
+                const delta = parsed?.choices?.[0]?.delta?.content;
+                if (delta) {
+                  receivedContent = true;
+                  fullContent += delta;
+                  safeWrite(`data: ${JSON.stringify({ content: delta })}\n\n`);
                 }
-                if (!trimmed.startsWith("data: ")) continue;
-
-                try {
-                  const parsed = JSON.parse(trimmed.slice(6));
-                  if (parsed.error) {
-                    console.error("OpenRouter error in stream:", parsed.error);
-                    reject(new Error(parsed.error.message || "OpenRouter stream error"));
-                    return;
-                  }
-                  const delta = parsed?.choices?.[0]?.delta?.content;
-                  if (delta) {
-                    receivedContent = true;
-                    fullContent += delta;
-                    safeWrite(`data: ${JSON.stringify({ content: delta })}\n\n`);
-                  }
-                } catch (parseError) {
-                  console.warn("SSE parse warning:", parseError.message, "| raw:", trimmed.substring(0, 120));
-                }
-              }
-            } catch (err) {
-              console.warn("SSE chunk decode warning:", err.message);
+              } catch {}
             }
-          };
+          } catch {}
+        };
 
-          const onEnd = () => {
-            if (!receivedContent && !seenDone) {
-              cleanup(new Error("Stream ended with no content"));
-            } else {
-              cleanup();
-            }
-          };
+        const onEnd = () => {
+          if (!receivedContent) cleanup(new Error("empty"));
+          else cleanup();
+        };
 
-          const onError = (err) => {
-            console.error("Stream error event:", err.message);
-            cleanup(err);
-          };
+        const onError = (err) => cleanup(err);
 
-          response.data.on("data", onData);
-          response.data.on("end", onEnd);
-          response.data.on("error", onError);
-        });
-
-        console.log("Stage: stream promise resolved, checking status");
-        if (abortController.signal.aborted) {
-          throw new Error("Client disconnected");
-        }
-
-        streamSuccess = true;
-        const latency = Date.now() - attemptStart;
-        console.log(`✅ Stream SUCCESS | attempt: ${attempt + 1} | latency: ${latency}ms | chars: ${fullContent.length}`);
-        break;
-      } catch (streamError) {
-        if (streamError.message === "Client disconnected" || abortController.signal.aborted) {
-          console.warn("⏹️ Stream aborted by client disconnect");
-          streamSuccess = false;
-          break;
-        }
-        const status = streamError.response?.status || streamError.code;
-        const isRetryable = [429, 500, 502, 503, 504, "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT"].includes(status);
-        const elapsed = Date.now() - attemptStart;
-
-        console.error(`❌ Stream FAILED | attempt: ${attempt + 1} | status: ${status} | elapsed: ${elapsed}ms | msg: ${streamError.message}`);
-
-        if (attempt < 2) {
-          const delay = 1000 * (attempt + 1);
-          console.warn(`  → Retrying in ${delay}ms...`);
-          await new Promise((r) => setTimeout(r, delay));
-        }
-      }
+        response.data.on("data", onData);
+        response.data.on("end", onEnd);
+        response.data.on("error", onError);
+      });
+    } catch (streamError) {
+      console.error("Stream error:", streamError.message);
     }
 
-    console.log("Stage: retry loop ended, cleaning up listener");
     req.off("close", onClientDisconnect);
 
-    console.log("Stage: saving assistant message, content length:", fullContent.length);
-    if (fullContent) {
-      await addMessage(session, "assistant", fullContent);
-      console.log("Stage: assistant message saved");
+    if (!fullContent) {
+      fullContent = hasImage ? IMAGE_FALLBACK : TEXT_FALLBACK;
+      res.write(`data: ${JSON.stringify({ content: fullContent })}\n\n`);
     }
 
-    if (!streamSuccess && !fullContent) {
-      const errorMsg = "AI model failed to respond. Please try again.";
-      console.error(`❌ All retries exhausted — no response generated`);
-      res.write(`data: ${JSON.stringify({ error: errorMsg })}\n\n`);
-    }
-    if (!streamSuccess && fullContent) {
-      console.warn(`⚠️ Partial response saved (${fullContent.length} chars) — stream did not complete`);
-    }
-
-    const totalLatency = Date.now() - startTime;
-    console.log(`\n========== AI HUB RESPONSE ==========`);
-    console.log("sessionId:", session._id.toString());
-    console.log("total chars:", fullContent.length);
-    console.log("total latency:", totalLatency + "ms");
-    console.log("model:", model);
-    console.log("retries:", retryCount);
-    console.log("=====================================\n");
+    await addMessage(session, "assistant", fullContent);
+    console.log("Total chars:", fullContent.length, "| latency:", Date.now() - startTime + "ms");
 
     res.write(`data: ${JSON.stringify({ done: true, conversationId: session._id.toString() })}\n\n`);
     res.end();
-    console.log("Stage: response closed successfully");
   } catch (error) {
-    const totalLatency = Date.now() - startTime;
-    console.error("\n========== AI HUB FATAL ERROR ==========");
-    console.error("latency:", totalLatency + "ms");
-    console.error("model:", getModel());
-    console.error("retries:", retryCount);
-    console.error("status:", error.response?.status || error.code);
-    console.error("message:", error.message);
-    if (error.response?.data) console.error("response:", JSON.stringify(error.response.data, null, 2));
-    console.error("========================================\n");
-
-    const friendlyMessage =
-      error.code === "ECONNREFUSED" ? "Cannot connect to OpenRouter. Check your network or base URL." :
-      error.code === "ETIMEDOUT" ? "OpenRouter request timed out after 180s." :
-      error.response?.status === 401 ? "OpenRouter rejected the API key." :
-      error.response?.status === 429 ? "OpenRouter rate limit exceeded. Please wait and try again." :
-      error.response?.status === 404 ? `OpenRouter model "${getModel()}" not found.` :
-      error.response?.status >= 500 ? "OpenRouter provider unavailable. Please try again." :
-      error.message || "AI execution failed.";
-
+    console.error("AI Hub fatal error:", error.message);
+    const fallback = IMAGE_FALLBACK;
     if (res.headersSent) {
       try {
-        res.write(`data: ${JSON.stringify({ error: friendlyMessage })}\n\n`);
+        res.write(`data: ${JSON.stringify({ content: fallback })}\n\n`);
+        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
         res.end();
       } catch (_) {}
     } else {
-      res.status(500).json({ error: friendlyMessage, success: false });
+      res.status(500).json({ error: fallback, success: false });
     }
   }
 };
@@ -1173,5 +1056,5 @@ export {
   aiCheatMealJudge, aiRecoveryCoach, aiProgressAnalyzer,
   aiSupplementAdvisor, aiGoalPlanner,
   getDailyChallenges, completeChallenge, getAchievements,
-  getXPInfo, saveFoodScan
+  getXPInfo, saveFoodScan, getChatSessions
 };

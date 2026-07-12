@@ -3,6 +3,8 @@ import path from "path";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import session from "express-session";
+import passport from "./config/passportConfig.js";
 
 import { fileURLToPath } from "url";
 
@@ -20,6 +22,7 @@ import aiRoutes from "./routes/aiRoutes.js";
 import emailRoutes from "./routes/emailRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 import nutritionRoutes from "./routes/nutritionRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 // ── Diagnostics: verify nutritionRoutes loaded ──
 console.log("\n=== NUTRITION IMPORT DIAGNOSTIC ===");
@@ -44,6 +47,18 @@ dotenv.config({
 
 const port = process.env.PORT || 5000;
 
+// ── Env diagnostics ──
+const apiKey = process.env.OPENROUTER_API_KEY || "";
+const apiKeyMasked = apiKey.length >= 12 ? apiKey.slice(0, 12) + "..." : "(short)";
+console.log("\n=== ENV DIAGNOSTIC ===");
+console.log("  OPENROUTER_API_KEY exists:", !!apiKey);
+console.log("  OPENROUTER_API_KEY (first 12):", apiKeyMasked);
+console.log("  TEXT_MODEL:", process.env.TEXT_MODEL || "(not set)");
+console.log("  IMAGE_MODEL:", process.env.IMAGE_MODEL || "(not set)");
+console.log("  PORT:", port);
+console.log("  NODE_ENV:", process.env.NODE_ENV || "(not set)");
+console.log("=====================\n");
+
 // ── Initialize Express ──
 const app = express();
 
@@ -64,6 +79,17 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 
+app.use(
+  session({
+    secret: process.env.JWT_SECRET || "fallback-secret",
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
+
 // ── API Routes ──
 app.use("/api/users", userRoutes);
 app.use("/api/user", userStatusRoutes);
@@ -75,6 +101,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/support", emailRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/nutrition", nutritionRoutes);
+app.use("/auth", authRoutes);
 
 // ── Root health check ──
 app.get("/", (req, res) => {
@@ -104,6 +131,9 @@ const startServer = async () => {
   });
 };
 
-startServer();
+const isVercel = process.env.VERCEL === "1";
+if (!isVercel) {
+  startServer();
+}
 
 export default app;

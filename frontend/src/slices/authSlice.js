@@ -17,8 +17,8 @@ const authSlice = createSlice({
     // 👇 YEH HAI MAIN FIX
     logout: (state) => {
       state.userInfo = null;
-      localStorage.removeItem('userInfo'); // Permanent Storage Clear
-      sessionStorage.clear(); // Temporary Session Clear (Zaroori hai!)
+      localStorage.clear();
+      sessionStorage.clear();
     },
   },
 });
