@@ -1,12 +1,12 @@
 {
   "rewrites": [
-    { 
-      "source": "/api/(.*)", 
-      "destination": "https://shape-up-backend-production.up.railway.app/api/$1" 
+    {
+      "source": "/api/:path*",
+      "destination": "https://shape-up-backend-production.up.railway.app/api/:path*"
     },
-    { 
-      "source": "/(.*)", 
-      "destination": "/index.html" 
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
