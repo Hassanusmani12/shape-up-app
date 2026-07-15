@@ -90,7 +90,7 @@ const Dashboard = () => {
   const { userInfo } = useSelector((state) => state.auth);
 
   const userId = userInfo?._id;
-  const { data: nutritionData } = useGetDailyStatsQuery(userId, { skip: !userId, pollingInterval: 10000 });
+  const { data: nutritionData } = useGetDailyStatsQuery(undefined, { skip: !userId, pollingInterval: 10000 });
   const aiNutrients = nutritionData?.totals || { calories: 0, protein: 0, carbs: 0, fats: 0, meals: 0 };
 
   const GOALS = useMemo(() => {

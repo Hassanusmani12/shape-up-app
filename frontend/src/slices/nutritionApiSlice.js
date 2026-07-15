@@ -13,8 +13,8 @@ export const nutritionApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ["DailyLog"],
     }),
     getDailyStats: builder.query({
-      query: (userId) => ({
-        url: `${NUTRITION_URL}/daily-stats/${userId}`,
+      query: () => ({
+        url: `${NUTRITION_URL}/daily-stats`,
       }),
       providesTags: ["DailyLog"],
     }),

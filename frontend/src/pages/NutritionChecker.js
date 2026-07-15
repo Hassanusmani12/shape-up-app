@@ -179,7 +179,7 @@ const NutritionChecker = () => {
   const objectUrlRef = useRef(null);
   const userNearBottomRef = useRef(true);
 
-  const { data: statsData, isLoading: statsLoading, refetch } = useGetDailyStatsQuery(userId, {
+  const { data: statsData, isLoading: statsLoading, refetch } = useGetDailyStatsQuery(undefined, {
     skip: !userId,
     pollingInterval: 10000,
   });
