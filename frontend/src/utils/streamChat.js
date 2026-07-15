@@ -4,7 +4,7 @@ const IMAGE_FALLBACK =
   "Sorry! Sometimes image analysis may not be available due to temporary AI model limitations.\n\nPlease describe the food or fitness item in text and I'll analyze it for you.";
 
 const TEXT_FALLBACK =
-  "I'm ShapeUp AI, a fitness assistant.\n\nI only answer questions related to fitness, nutrition, workouts, health and food analysis.\n\nPlease ask me something related to your fitness journey.";
+  "Hi! I'm ShapeUp AI, your fitness assistant. I'm here to help with workouts, nutrition, meal plans, and health. Feel free to ask me anything fitness-related!";
 
 export async function streamChat(body, onChunk, onError, signal) {
   const controller = new AbortController();

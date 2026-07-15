@@ -188,7 +188,51 @@ export default function AIHub() {
   const msgIdCounter = useRef(0);
 
   useEffect(() => {
-    setChats(getChats());
+    async function loadChats() {
+      const localChats = getChats();
+      if (!userInfo) {
+        setChats(localChats);
+        return;
+      }
+      try {
+        const res = await fetch("/api/ai/sessions", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.sessions)) {
+            const backendChats = data.sessions.map((s) => {
+              const local = localChats.find((c) => c.conversationId === s._id);
+              const msgs = (s.messages || []).map((m) => ({
+                id: `m_${m._id || Math.random().toString(36).slice(2)}`,
+                role: m.role,
+                content: m.content || "",
+                image: m.imageData || null,
+                timestamp: m.timestamp ? new Date(m.timestamp).getTime() : Date.now(),
+              }));
+              return {
+                id: local?.id || `chat_${s._id}`,
+                conversationId: s._id,
+                title: local?.title || msgs.find((m) => m.role === "user")?.content?.substring(0, 42) || "Chat",
+                messages: msgs,
+                createdAt: s.createdAt ? new Date(s.createdAt).getTime() : Date.now(),
+                updatedAt: s.updatedAt ? new Date(s.updatedAt).getTime() : Date.now(),
+              };
+            });
+            const merged = backendChats;
+            for (const local of localChats) {
+              if (!merged.find((c) => c.conversationId === local.conversationId)) {
+                merged.push(local);
+              }
+            }
+            merged.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+            setChats(merged);
+            saveChats(merged);
+            return;
+          }
+        }
+      } catch {}
+      setChats(localChats);
+    }
+    loadChats();
     return () => {
       setChats([]);
       setMessages([]);

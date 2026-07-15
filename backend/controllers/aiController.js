@@ -890,13 +890,13 @@ export const handleAIRequest = async (req, res) => {
 
 const IMAGE_FALLBACK = "Sorry! Sometimes image analysis may not be available due to temporary AI model limitations.\n\nPlease describe the food or fitness item in text and I'll analyze it for you.";
 
-const TEXT_FALLBACK = "I'm ShapeUp AI, a fitness assistant.\n\nI only answer questions related to fitness, nutrition, workouts, health and food analysis.\n\nPlease ask me something related to your fitness journey.";
+const TEXT_FALLBACK = "Hi! I'm ShapeUp AI, your fitness assistant. I'm here to help with workouts, nutrition, meal plans, and health. Feel free to ask me anything fitness-related!";
 
 const getChatSessions = asyncHandler(async (req, res) => {
   console.log("Fetching chats for User ID:", req.user._id);
   try {
     const sessions = await ChatSession.find({ user: req.user._id })
-      .select("tool updatedAt createdAt")
+      .select("tool messages updatedAt createdAt")
       .sort({ updatedAt: -1 });
     res.json({ success: true, sessions });
   } catch (error) {
