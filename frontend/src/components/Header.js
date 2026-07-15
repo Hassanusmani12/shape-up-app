@@ -16,6 +16,14 @@ const HEADER_NAV = [
   { label: "Features", path: "/pages/features" },
 ];
 
+const HEADER_ICONS = {
+  "/dashboard": "📊",
+  "/pages/workouts": "💪",
+  "/pages/nutrition-checker": "🥗",
+  "/ai-hub": "🤖",
+  "/pages/features": "⚡",
+};
+
 const Header = () => {
   const { userInfo } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
@@ -35,6 +43,11 @@ const Header = () => {
   useEffect(() => {
     setExpanded(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    document.body.style.overflow = expanded ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [expanded]);
 
   const logoutHandler = async () => {
     try {
@@ -62,6 +75,7 @@ const Header = () => {
         borderBottom: scrolled ? '1px solid rgba(0,255,136,0.08)' : '1px solid transparent',
         transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
         padding: '6px 0',
+        zIndex: 1040,
       }}
     >
       <Container style={{ maxWidth: 1200 }}>
@@ -80,11 +94,28 @@ const Header = () => {
           </span>
         </Link>
 
-        <Navbar.Toggle aria-controls="main-nav" style={{ border: '1px solid rgba(0,255,136,0.15)', padding: '5px 8px', borderRadius: 8 }}>
-          {expanded ? <CloseIcon style={{ color: 'var(--neon-green)', fontSize: '1.1rem' }} /> : <MenuIcon style={{ color: 'var(--neon-green)', fontSize: '1.1rem' }} />}
-        </Navbar.Toggle>
+        <button
+          aria-label="Toggle menu"
+          onClick={() => setExpanded((p) => !p)}
+          className="d-lg-none"
+          style={{
+            position: 'relative',
+            zIndex: 1050,
+            border: '1px solid rgba(0,255,136,0.15)',
+            padding: '5px 8px',
+            borderRadius: 8,
+            background: 'transparent',
+            cursor: 'pointer',
+          }}
+        >
+          {expanded ? (
+            <CloseIcon style={{ color: 'var(--neon-green)', fontSize: '1.1rem' }} />
+          ) : (
+            <MenuIcon style={{ color: 'var(--neon-green)', fontSize: '1.1rem' }} />
+          )}
+        </button>
 
-        <Navbar.Collapse id="main-nav">
+        <Navbar.Collapse id="main-nav" className="d-none d-lg-flex">
           <Nav className="mx-auto gap-1">
             {HEADER_NAV.filter((item) => item.path !== "/ai-hub" || userInfo).map((item) => (
               <Nav.Link
@@ -165,6 +196,119 @@ const Header = () => {
             )}
           </Nav>
         </Navbar.Collapse>
+
+        {expanded && (
+          <div
+            onClick={() => setExpanded(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1041,
+              background: 'rgba(0,0,0,0.6)',
+            }}
+          />
+        )}
+
+        {expanded && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 'min(300px, 80vw)',
+              zIndex: 1042,
+              background: '#0f0f17',
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '76px 20px 20px',
+              borderLeft: '1px solid rgba(255,255,255,0.06)',
+              boxShadow: '-4px 0 24px rgba(0,0,0,0.6)',
+            }}
+          >
+            <button
+              aria-label="Close menu"
+              onClick={() => setExpanded(false)}
+              style={{
+                position: 'absolute',
+                top: 18,
+                right: 18,
+                width: 34,
+                height: 34,
+                borderRadius: '50%',
+                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(255,255,255,0.04)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#aaa',
+                transition: 'all 0.2s',
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 18 }} />
+            </button>
+
+            <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+              {HEADER_NAV.filter((item) => item.path !== "/ai-hub" || userInfo).map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setExpanded(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '13px 14px',
+                    borderRadius: 10,
+                    textDecoration: 'none',
+                    color: isActive(item.path) ? '#fff' : 'rgba(255,255,255,0.6)',
+                    fontWeight: isActive(item.path) ? 600 : 400,
+                    fontSize: '0.95rem',
+                    background: isActive(item.path) ? 'rgba(255,255,255,0.06)' : 'transparent',
+                    borderLeft: isActive(item.path) ? '3px solid #4ade80' : '3px solid transparent',
+                    transition: 'background 0.15s',
+                  }}
+                >
+                  <span style={{ fontSize: '1.05rem', width: 22, textAlign: 'center', flexShrink: 0 }}>
+                    {HEADER_ICONS[item.path] || "•"}
+                  </span>
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+
+            {userInfo && (
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, marginTop: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.03)' }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #4ade80, #22d3ee)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#000', fontWeight: 700, fontSize: '0.85rem', flexShrink: 0,
+                  }}>
+                    {userInfo.name?.charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 500, fontSize: '0.85rem', color: '#fff', lineHeight: 1.3 }}>{userInfo.name}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userInfo.email}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                  <Link to="/pages/profile" onClick={() => setExpanded(false)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '9px 0', borderRadius: 8, background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', textDecoration: 'none' }}>
+                    <FaUser size={11} /> Profile
+                  </Link>
+                  <Link to="/pages/settings" onClick={() => setExpanded(false)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '9px 0', borderRadius: 8, background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', textDecoration: 'none' }}>
+                    <FaCog size={11} /> Settings
+                  </Link>
+                  <button onClick={() => { setExpanded(false); logoutHandler(); }} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '9px 0', borderRadius: 8, background: 'rgba(255,68,68,0.08)', color: 'rgba(255,68,68,0.55)', fontSize: '0.75rem', border: 'none', cursor: 'pointer' }}>
+                    <FaSignOutAlt size={11} /> Logout
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </Container>
     </Navbar>
   );
