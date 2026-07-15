@@ -62,28 +62,27 @@ console.log("=====================\n");
 // ── Initialize Express ──
 const app = express();
 
-// ── CORS: must be FIRST middleware to intercept preflight OPTIONS ──
-app.use(
-  cors({
-    origin: [
-      "http://localhost:3000",
-      "https://shape-up-app-gray.vercel.app",
-    ],
-    credentials: true,
-  })
-);
-// Handle preflight OPTIONS requests explicitly (some browsers need this)
-app.options("*", cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 
+app.set("trust proxy", 1);
+
 app.use(
   session({
-    secret: process.env.JWT_SECRET || "fallback-secret",
+    secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || "fallback-secret",
     resave: false,
     saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+    },
   })
 );
 
