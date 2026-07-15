@@ -62,19 +62,12 @@ console.log("=====================\n");
 // ── Initialize Express ──
 const app = express();
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://shape-up-app-henna.vercel.app'
-];
+const CORS_ORIGIN = process.env.NODE_ENV === 'production'
+  ? 'https://shape-up-app-henna.vercel.app'
+  : ['http://localhost:3000', 'https://shape-up-app-henna.vercel.app'];
 
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: CORS_ORIGIN,
   credentials: true
 }));
 
