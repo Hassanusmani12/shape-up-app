@@ -18,13 +18,11 @@ const protect = asyncHandler(async (req, res, next) => {
       next();
     } catch (error) {
       console.error("protect middleware | invalid token:", error.message);
-      res.status(401);
-      throw new Error("Not authorized, invalid token");
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
   } else {
     console.warn("protect middleware | no token found in cookies");
-    res.status(401);
-    throw new Error("Not authorized, no token");
+    return res.status(401).json({ success: false, message: "Unauthorized" });
   }
 });
 
