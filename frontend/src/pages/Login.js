@@ -179,8 +179,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-                    window.location.href = `${apiUrl}/auth/google`;
+                    window.location.href = '/auth/google';
                   }}
                   style={{
                     width: '100%', padding: '12px 20px', borderRadius: 12,

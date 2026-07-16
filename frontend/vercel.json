@@ -5,6 +5,10 @@
       "destination": "https://shape-up-backend-production.up.railway.app/api/:path*"
     },
     {
+      "source": "/auth/:path*",
+      "destination": "https://shape-up-backend-production.up.railway.app/auth/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

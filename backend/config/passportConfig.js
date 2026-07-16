@@ -14,7 +14,7 @@ import User from "../models/userModel.js";
 
 const callbackURL =
   process.env.NODE_ENV === "production"
-    ? "https://shape-up-backend-production.up.railway.app/auth/google/callback"
+    ? "https://shape-up-app-henna.vercel.app/auth/google/callback"
     : "http://localhost:5000/auth/google/callback";
 
 passport.use(
