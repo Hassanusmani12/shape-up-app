@@ -11,7 +11,7 @@ const generateToken = (res, userId, rememberMe = false) => {
   res.cookie("jwt", token, {
     httpOnly: true,
     secure: true,
-    sameSite: "none",
+    sameSite: "lax",
     maxAge,
     path: "/",
   });
