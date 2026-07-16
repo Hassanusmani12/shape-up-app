@@ -629,7 +629,6 @@ export default function AIHub() {
                 placeholder="Ask about fitness, nutrition, workouts..."
                 className="neon-input ai-hub-input"
                 ref={inputRef}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) handleSubmit(e); }}
               />
               <motion.button type="submit" disabled={loading || (!input.trim() && !imageBase64)}
                 whileHover={(!input.trim() && !imageBase64) || loading ? {} : { scale: 1.05 }}
