@@ -11,19 +11,19 @@ import {
 } from "react-icons/fa";
 
 const SettingItem = ({ icon, title, desc, action }) => (
-  <div className="cinematic-card d-flex align-items-center justify-content-between p-3 mb-2" style={{ borderRadius: 12 }}>
-    <div className="d-flex align-items-center" style={{ gap: 14 }}>
+  <div className="cinematic-card d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-sm-between p-3 mb-2" style={{ borderRadius: 12, gap: 12 }}>
+    <div className="d-flex align-items-center" style={{ gap: 14, flex: 1, minWidth: 0 }}>
       <div style={{
         width: 40, height: 40, borderRadius: 10, display: 'flex',
         alignItems: 'center', justifyContent: 'center', background: 'rgba(0, 255, 136, 0.1)',
-        color: 'var(--neon-green)', fontSize: '1rem',
+        color: 'var(--neon-green)', fontSize: '1rem', flexShrink: 0,
       }}>{icon}</div>
       <div>
         <h6 className="mb-0 fw-bold text-adaptive-head" style={{ fontSize: '0.9rem' }}>{title}</h6>
         <small className="text-muted" style={{ fontSize: '0.8rem' }}>{desc}</small>
       </div>
     </div>
-    <div>{action}</div>
+    <div style={{ flexShrink: 0 }}>{action}</div>
   </div>
 );
 
@@ -146,6 +146,7 @@ const Settings = () => {
                         padding: '6px 14px', borderRadius: 6, fontWeight: 600, fontSize: '0.8rem',
                         background: 'rgba(0, 255, 136, 0.1)', color: 'var(--neon-green)',
                         border: '1px solid rgba(0, 255, 136, 0.2)',
+                        whiteSpace: 'nowrap',
                       }}>
                         Dark Mode
                       </span>
@@ -155,12 +156,12 @@ const Settings = () => {
                   <label className="text-muted" style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10, display: 'block' }}>REGIONAL</label>
                   <SettingItem icon={<FaGlobe />} title="Measurement Units" desc="Select your preferred system"
                     action={
-                      <div className="d-flex p-1 rounded" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', gap: 3 }}>
+                      <div className="d-flex p-1 rounded" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', gap: 3, flexShrink: 0 }}>
                         {['metric', 'imperial'].map(u => (
                           <button key={u} onClick={() => setUnit(u)}
                             className={unit === u ? 'btn-cinematic btn-cinematic-green' : ''}
                             style={{
-                              padding: '6px 14px', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.2s',
+                              padding: '6px 14px', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap',
                               background: unit === u ? undefined : 'transparent',
                               color: unit === u ? undefined : 'var(--text-muted)',
                             }}>
