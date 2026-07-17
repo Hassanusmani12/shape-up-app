@@ -55,7 +55,7 @@ const SupportChatbot = () => {
       console.log("SupportChatbot - SENDING:", { message: text });
       const { data } = await axios.post('/api/ai/chat', {
         message: text,
-        userData: { name: userInfo?.name || "Friend", goal: userInfo?.goal || "General Fitness", weight: userInfo?.weight || "Unknown" }
+        stream: false,
       }, { withCredentials: true });
       console.log("SupportChatbot - RESPONSE DATA:", data);
       console.log("SupportChatbot - data.reply:", data?.reply);

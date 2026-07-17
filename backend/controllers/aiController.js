@@ -1,5 +1,5 @@
 import asyncHandler from "express-async-handler";
-import { callOpenRouter, getModel, buildMessages, extractContent, AI_HUB_SYSTEM_PROMPT } from "../services/openrouter.js";
+import { callOpenRouter, getModel, buildMessages, extractContent } from "../services/openrouter.js";
 import { ChatSession, XP, DailyChallenge, Achievement, getLevelInfo, ALL_ACHIEVEMENTS } from "../models/aiModel.js";
 import User from "../models/userModel.js";
 import Status from "../models/userStatusModel.js";
@@ -845,10 +845,26 @@ export const handleAIRequest = async (req, res) => {
       return res.status(400).json({ success: false, message: "Prompt (message) is required." });
     }
 
+    const userId = req.user?._id;
+    let systemPromptContent;
+    if (userId) {
+      const userProfile = await User.findById(userId).select("name weight height age goal activityLevel");
+      const status = await Status.findOne({ user: userId }).sort({ createdAt: -1 }).select("activityLevel");
+      if (userProfile?.weight && userProfile?.height) {
+        systemPromptContent = `You are ShapeUp AI, a personalized fitness assistant. The user's current stats are: Weight: ${userProfile.weight}kg, Height: ${userProfile.height}cm, Primary Goal: ${userProfile.goal || "Not specified"}, Activity Level: ${status?.activityLevel || userProfile.activityLevel || "Not specified"}. 
+    CRITICAL RULE: ALWAYS use these exact metrics to calculate and provide tailored fitness, diet, and weight management advice. Do NOT ask the user for their weight or height, as you already know it.`;
+      } else {
+        systemPromptContent = `You are ShapeUp AI, a fitness assistant. The user has NOT provided their body metrics (weight, height, goals) in their profile yet. 
+    CRITICAL RULE: If the user asks for personalized advice (like "how to gain weight" or "give me a meal plan"), politely tell them that you need their current weight, height, age, and goals to give accurate advice, and encourage them to update their profile settings.`;
+      }
+    } else {
+      systemPromptContent = `You are ShapeUp AI, an elite fitness assistant. Respond to the user's fitness, nutrition, and health questions naturally.`;
+    }
+
     const model = getModel({ hasImage: !!imageData });
     const messages = imageData
       ? [
-          { role: "system", content: "You are an expert AI assistant. Execute the user's prompt exactly as requested." },
+          { role: "system", content: systemPromptContent },
           {
             role: "user",
             content: [
@@ -858,7 +874,7 @@ export const handleAIRequest = async (req, res) => {
           },
         ]
       : [
-          { role: "system", content: "You are an expert AI assistant. Execute the user's prompt exactly as requested." },
+          { role: "system", content: systemPromptContent },
           { role: "user", content: message },
         ];
 
@@ -910,11 +926,26 @@ const aiChat = async (req, res) => {
   const startTime = Date.now();
 
   try {
-    const { message, image, mimeType, conversationId } = req.body;
+    const { message, image, mimeType, conversationId, stream: wantStream } = req.body;
     const userId = req.user?._id;
     const hasImage = !!image;
     const model = getModel({ hasImage });
     console.log("Selected model:", model);
+
+    let systemPromptContent;
+    if (userId) {
+      const userProfile = await User.findById(userId).select("name weight height age goal activityLevel");
+      const status = await Status.findOne({ user: userId }).sort({ createdAt: -1 }).select("activityLevel");
+      if (userProfile?.weight && userProfile?.height) {
+        systemPromptContent = `You are ShapeUp AI, a personalized fitness assistant. The user's current stats are: Weight: ${userProfile.weight}kg, Height: ${userProfile.height}cm, Primary Goal: ${userProfile.goal || "Not specified"}, Activity Level: ${status?.activityLevel || userProfile.activityLevel || "Not specified"}. 
+    CRITICAL RULE: ALWAYS use these exact metrics to calculate and provide tailored fitness, diet, and weight management advice. Do NOT ask the user for their weight or height, as you already know it.`;
+      } else {
+        systemPromptContent = `You are ShapeUp AI, a fitness assistant. The user has NOT provided their body metrics (weight, height, goals) in their profile yet. 
+    CRITICAL RULE: If the user asks for personalized advice (like "how to gain weight" or "give me a meal plan"), politely tell them that you need their current weight, height, age, and goals to give accurate advice, and encourage them to update their profile settings.`;
+      }
+    } else {
+      systemPromptContent = `You are ShapeUp AI, an elite fitness assistant. Respond to the user's fitness, nutrition, and health questions naturally.`;
+    }
 
     let session;
     if (conversationId) {
@@ -930,10 +961,33 @@ const aiChat = async (req, res) => {
     }
 
     const history = session.messages.slice(-20);
-    const openaiMessages = buildMessages(AI_HUB_SYSTEM_PROMPT, message || (image ? "Analyze this image." : "Hello"), image, mimeType, history);
+    const openaiMessages = buildMessages(systemPromptContent, message || (image ? "Analyze this image." : "Hello"), image, mimeType, history);
 
     await addMessage(session, "user", message || (image ? "Analyze this image." : "Hello"), image || null);
 
+    // ── Non-streaming JSON mode (used by SupportChatbot) ──
+    if (wantStream === false) {
+      try {
+        const response = await callOpenRouter({
+          messages: openaiMessages,
+          stream: false,
+          max_tokens: 2000,
+          hasImage,
+          timeout: 20000,
+        });
+        const aiResult = extractContent(response.data);
+        if (!aiResult) {
+          return res.status(500).json({ success: false, reply: TEXT_FALLBACK });
+        }
+        await addMessage(session, "assistant", aiResult);
+        return res.json({ reply: aiResult, conversationId: session._id.toString() });
+      } catch (error) {
+        console.error("AI Chat (non-stream) error:", error.message);
+        return res.status(500).json({ success: false, reply: TEXT_FALLBACK });
+      }
+    }
+
+    // ── Streaming SSE mode (used by AI Hub) ──
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",

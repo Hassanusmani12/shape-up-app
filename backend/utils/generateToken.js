@@ -10,8 +10,8 @@ const generateToken = (res, userId, rememberMe = false) => {
 
   res.cookie("jwt", token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "lax" : "strict",
     maxAge,
     path: "/",
   });
